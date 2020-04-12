@@ -23,19 +23,19 @@ async function getRepoTags(): Promise<string[]> {
 async function run(): Promise<void> {
     try {
         const jsonFile: string = core.getInput('file');
-        core.debug(`Reading json from ${jsonFile}`);
+        core.info(`Reading json from ${jsonFile}`);
 
         const { version } = JSON.parse(await readFilePromise(jsonFile, 'utf8'));
-        core.debug(`Read json version ${version}`);
+        core.info(`Read json version ${version}`);
 
-        core.debug('Obtaining repo tags');
+        core.info('Obtaining repo tags');
         const tags = await getRepoTags();
-        core.debug(`Repo has tags: ${tags.join(' ')}`);
+        core.info(`Repo has tags: ${tags.join(' ')}`);
 
         if (tags.indexOf(version) > -1) {
             core.setFailed(`Tag ${version} already exists in repo`);
         } else {
-            core.debug(`${version} is a new tag, all set to publish new release!`);
+            core.info(`${version} is a new tag, all set to publish new release!`);
             core.setOutput('releaseVersion', version);
         }
     } catch (error) {
