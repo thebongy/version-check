@@ -121,7 +121,7 @@ function run() {
                     break;
                 case 'cargo.toml':
                     core.info('Parsing Rust Cargo.toml file');
-                    version = toml.parse(fileData).version;
+                    version = toml.parse(fileData).package.version;
                     break;
                 default:
                     core.setFailed(`Unsupported file type ${file}`);
