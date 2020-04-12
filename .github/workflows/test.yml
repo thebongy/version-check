@@ -20,7 +20,7 @@ jobs:
     - uses: actions/checkout@v1
     - uses: ./
       with: 
-        file: data.json
+        file: package.json
     - uses: ./
       with: 
-        file: data.toml
+        file: Cargo.toml
