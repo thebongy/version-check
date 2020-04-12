@@ -4,7 +4,11 @@ author: 'thebongy'
 inputs:
   file:
     required: true
-    description: 'Path to json file with version property on root'
+    description: Path to json file with version property on root
+  tagFormat:
+    required: false
+    description: Format string for tag, use ${version} to substitute version
+    default: ${version}
 outputs:
   releaseVersion:
     description: 'If version is unique, the version from the jsonFile.'

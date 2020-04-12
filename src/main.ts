@@ -29,6 +29,8 @@ async function getRepoTags(): Promise<string[]> {
 async function run(): Promise<void> {
     try {
         const file: string = core.getInput('file');
+        const tagFormat: string = core.getInput('tagFormat');
+
         const fileName = path.basename(file).toLowerCase();
         core.info(`Reading ${file}`);
         const fileData = await readFilePromise(file, 'utf8');
@@ -49,6 +51,11 @@ async function run(): Promise<void> {
         }
 
         core.info(`Version in file: ${version}`);
+
+        // eslint-disable-next-line no-template-curly-in-string
+        version = tagFormat.replace('${version}', version);
+
+        core.info(`Current Tag: ${version}`);
 
         core.info('Obtaining repo tags');
         const tags = await getRepoTags();
