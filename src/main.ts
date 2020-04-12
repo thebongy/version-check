@@ -16,6 +16,9 @@ async function executeCommand(command: string): Promise<string> {
     });
 }
 
+/**
+ * Get Tags of repo
+ */
 async function getRepoTags(): Promise<string[]> {
     return (await executeCommand('git tag')).split('\n');
 }
