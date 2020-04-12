@@ -110,6 +110,7 @@ function run() {
     return __awaiter(this, void 0, void 0, function* () {
         try {
             const file = core.getInput('file');
+            const tagFormat = core.getInput('tagFormat');
             const fileName = path.basename(file).toLowerCase();
             core.info(`Reading ${file}`);
             const fileData = yield readFilePromise(file, 'utf8');
@@ -128,6 +129,9 @@ function run() {
                     break;
             }
             core.info(`Version in file: ${version}`);
+            // eslint-disable-next-line no-template-curly-in-string
+            version = tagFormat.replace('${version}', version);
+            core.info(`Current Tag: ${version}`);
             core.info('Obtaining repo tags');
             const tags = yield getRepoTags();
             core.info(`Repo has tags: ${tags.join(' ')}`);
