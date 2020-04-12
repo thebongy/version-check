@@ -1,10 +1,13 @@
-name: 'Your name here'
+name: 'version-check'
 description: 'Provide a description here'
-author: 'Your name or organization here'
+author: 'thebongy'
 inputs:
-  myInput:              # change this
-    description: 'input description here'
-    default: 'default value if applicable'
+  file:
+    required: true
+    description: 'Path to json file with version property on root'
+outputs:
+  releaseVersion:
+    description: 'If version is unique, the version from the jsonFile.'
 runs:
   using: 'node12'
   main: 'dist/index.js'

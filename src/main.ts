@@ -1,19 +1,46 @@
-import * as core from '@actions/core'
-import {wait} from './wait'
+import * as core from '@actions/core';
+import { exec } from 'child_process';
+import { readFile } from 'fs';
+import { promisify } from 'util';
 
-async function run(): Promise<void> {
-  try {
-    const ms: string = core.getInput('milliseconds')
-    core.debug(`Waiting ${ms} milliseconds ...`)
+const readFilePromise = promisify(readFile);
 
-    core.debug(new Date().toTimeString())
-    await wait(parseInt(ms, 10))
-    core.debug(new Date().toTimeString())
-
-    core.setOutput('time', new Date().toTimeString())
-  } catch (error) {
-    core.setFailed(error.message)
-  }
+async function executeCommand(command: string): Promise<string> {
+    return new Promise((resolve, reject) => {
+        exec(command, (err, stdout, stderr) => {
+            if (err) {
+                reject(stderr);
+            }
+            resolve(stdout);
+        });
+    });
 }
 
-run()
+async function getRepoTags(): Promise<string[]> {
+    return (await executeCommand('git tag')).split('\n');
+}
+
+async function run(): Promise<void> {
+    try {
+        const jsonFile: string = core.getInput('file');
+        core.debug(`Reading json from ${jsonFile}`);
+
+        const { version } = JSON.parse(await readFilePromise(jsonFile, 'utf8'));
+        core.debug(`Read json version ${version}`);
+
+        core.debug('Obtaining repo tags');
+        const tags = await getRepoTags();
+        core.debug(`Repo has tags: ${tags.join(' ')}`);
+
+        if (tags.indexOf(version) > -1) {
+            core.setFailed(`Tag ${version} already exists in repo`);
+        } else {
+            core.debug(`${version} is a new tag, all set to publish new release!`);
+            core.setOutput('releaseVersion', version);
+        }
+    } catch (error) {
+        core.setFailed(error.message);
+    }
+}
+
+run();
