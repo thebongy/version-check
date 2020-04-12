@@ -1,4 +1,7 @@
 import * as core from '@actions/core';
+import * as toml from 'toml';
+import * as path from 'path';
+
 import { exec } from 'child_process';
 import { readFile } from 'fs';
 import { promisify } from 'util';
@@ -25,11 +28,27 @@ async function getRepoTags(): Promise<string[]> {
 
 async function run(): Promise<void> {
     try {
-        const jsonFile: string = core.getInput('file');
-        core.info(`Reading json from ${jsonFile}`);
+        const file: string = core.getInput('file');
+        const fileName = path.basename(file).toLowerCase();
+        core.info(`Reading ${file}`);
+        const fileData = await readFilePromise(file, 'utf8');
+        let version;
 
-        const { version } = JSON.parse(await readFilePromise(jsonFile, 'utf8'));
-        core.info(`Read json version ${version}`);
+        switch (fileName) {
+            case 'package.json':
+                core.info('Parsing NodeJS package.json');
+                version = JSON.parse(fileData).version;
+                break;
+            case 'cargo.toml':
+                core.info('Parsing Rust Cargo.toml file');
+                version = toml.parse(fileData).version;
+                break;
+            default:
+                core.setFailed(`Unsupported file type ${file}`);
+                break;
+        }
+
+        core.info(`Version in file: ${version}`);
 
         core.info('Obtaining repo tags');
         const tags = await getRepoTags();

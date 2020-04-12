@@ -21,3 +21,6 @@ jobs:
     - uses: ./
       with: 
         file: data.json
+    - uses: ./
+      with: 
+        file: data.toml
