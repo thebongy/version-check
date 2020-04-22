@@ -34,7 +34,7 @@ module.exports =
 /******/ 	// the startup function
 /******/ 	function startup() {
 /******/ 		// Load entry module and return exports
-/******/ 		return __webpack_require__(198);
+/******/ 		return __webpack_require__(77);
 /******/ 	};
 /******/
 /******/ 	// run startup
@@ -43,21 +43,210 @@ module.exports =
 /************************************************************************/
 /******/ ({
 
-/***/ 87:
+/***/ 3:
 /***/ (function(module) {
 
-module.exports = require("os");
+"use strict";
+
+function compile(nodes) {
+  var assignedPaths = [];
+  var valueAssignments = [];
+  var currentPath = "";
+  var data = Object.create(null);
+  var context = data;
+  var arrayMode = false;
+
+  return reduce(nodes);
+
+  function reduce(nodes) {
+    var node;
+    for (var i = 0; i < nodes.length; i++) {
+      node = nodes[i];
+      switch (node.type) {
+      case "Assign":
+        assign(node);
+        break;
+      case "ObjectPath":
+        setPath(node);
+        break;
+      case "ArrayPath":
+        addTableArray(node);
+        break;
+      }
+    }
+
+    return data;
+  }
+
+  function genError(err, line, col) {
+    var ex = new Error(err);
+    ex.line = line;
+    ex.column = col;
+    throw ex;
+  }
+
+  function assign(node) {
+    var key = node.key;
+    var value = node.value;
+    var line = node.line;
+    var column = node.column;
+
+    var fullPath;
+    if (currentPath) {
+      fullPath = currentPath + "." + key;
+    } else {
+      fullPath = key;
+    }
+    if (typeof context[key] !== "undefined") {
+      genError("Cannot redefine existing key '" + fullPath + "'.", line, column);
+    }
+
+    context[key] = reduceValueNode(value);
+
+    if (!pathAssigned(fullPath)) {
+      assignedPaths.push(fullPath);
+      valueAssignments.push(fullPath);
+    }
+  }
+
+
+  function pathAssigned(path) {
+    return assignedPaths.indexOf(path) !== -1;
+  }
+
+  function reduceValueNode(node) {
+    if (node.type === "Array") {
+      return reduceArrayWithTypeChecking(node.value);
+    } else if (node.type === "InlineTable") {
+      return reduceInlineTableNode(node.value);
+    } else {
+      return node.value;
+    }
+  }
+
+  function reduceInlineTableNode(values) {
+    var obj = Object.create(null);
+    for (var i = 0; i < values.length; i++) {
+      var val = values[i];
+      if (val.value.type === "InlineTable") {
+        obj[val.key] = reduceInlineTableNode(val.value.value);
+      } else if (val.type === "InlineTableValue") {
+        obj[val.key] = reduceValueNode(val.value);
+      }
+    }
+
+    return obj;
+  }
+
+  function setPath(node) {
+    var path = node.value;
+    var quotedPath = path.map(quoteDottedString).join(".");
+    var line = node.line;
+    var column = node.column;
+
+    if (pathAssigned(quotedPath)) {
+      genError("Cannot redefine existing key '" + path + "'.", line, column);
+    }
+    assignedPaths.push(quotedPath);
+    context = deepRef(data, path, Object.create(null), line, column);
+    currentPath = path;
+  }
+
+  function addTableArray(node) {
+    var path = node.value;
+    var quotedPath = path.map(quoteDottedString).join(".");
+    var line = node.line;
+    var column = node.column;
+
+    if (!pathAssigned(quotedPath)) {
+      assignedPaths.push(quotedPath);
+    }
+    assignedPaths = assignedPaths.filter(function(p) {
+      return p.indexOf(quotedPath) !== 0;
+    });
+    assignedPaths.push(quotedPath);
+    context = deepRef(data, path, [], line, column);
+    currentPath = quotedPath;
+
+    if (context instanceof Array) {
+      var newObj = Object.create(null);
+      context.push(newObj);
+      context = newObj;
+    } else {
+      genError("Cannot redefine existing key '" + path + "'.", line, column);
+    }
+  }
+
+  // Given a path 'a.b.c', create (as necessary) `start.a`,
+  // `start.a.b`, and `start.a.b.c`, assigning `value` to `start.a.b.c`.
+  // If `a` or `b` are arrays and have items in them, the last item in the
+  // array is used as the context for the next sub-path.
+  function deepRef(start, keys, value, line, column) {
+    var traversed = [];
+    var traversedPath = "";
+    var path = keys.join(".");
+    var ctx = start;
+
+    for (var i = 0; i < keys.length; i++) {
+      var key = keys[i];
+      traversed.push(key);
+      traversedPath = traversed.join(".");
+      if (typeof ctx[key] === "undefined") {
+        if (i === keys.length - 1) {
+          ctx[key] = value;
+        } else {
+          ctx[key] = Object.create(null);
+        }
+      } else if (i !== keys.length - 1 && valueAssignments.indexOf(traversedPath) > -1) {
+        // already a non-object value at key, can't be used as part of a new path
+        genError("Cannot redefine existing key '" + traversedPath + "'.", line, column);
+      }
+
+      ctx = ctx[key];
+      if (ctx instanceof Array && ctx.length && i < keys.length - 1) {
+        ctx = ctx[ctx.length - 1];
+      }
+    }
+
+    return ctx;
+  }
+
+  function reduceArrayWithTypeChecking(array) {
+    // Ensure that all items in the array are of the same type
+    var firstType = null;
+    for (var i = 0; i < array.length; i++) {
+      var node = array[i];
+      if (firstType === null) {
+        firstType = node.type;
+      } else {
+        if (node.type !== firstType) {
+          genError("Cannot add value of type " + node.type + " to array of type " +
+            firstType + ".", node.line, node.column);
+        }
+      }
+    }
+
+    // Recursively reduce array of nodes into array of the nodes' values
+    return array.map(reduceValueNode);
+  }
+
+  function quoteDottedString(str) {
+    if (str.indexOf(".") > -1) {
+      return "\"" + str + "\"";
+    } else {
+      return str;
+    }
+  }
+}
+
+module.exports = {
+  compile: compile
+};
+
 
 /***/ }),
 
-/***/ 129:
-/***/ (function(module) {
-
-module.exports = require("child_process");
-
-/***/ }),
-
-/***/ 198:
+/***/ 77:
 /***/ (function(__unusedmodule, exports, __webpack_require__) {
 
 "use strict";
@@ -79,8 +268,8 @@ var __importStar = (this && this.__importStar) || function (mod) {
     return result;
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-const core = __importStar(__webpack_require__(470));
-const toml = __importStar(__webpack_require__(401));
+const core = __importStar(__webpack_require__(368));
+const toml = __importStar(__webpack_require__(781));
 const path = __importStar(__webpack_require__(622));
 const child_process_1 = __webpack_require__(129);
 const fs_1 = __webpack_require__(747);
@@ -111,10 +300,12 @@ function run() {
         try {
             const file = core.getInput('file');
             const tagFormat = core.getInput('tagFormat');
+            const failBuild = core.getInput('failBuild');
             const fileName = path.basename(file).toLowerCase();
             core.info(`Reading ${file}`);
             const fileData = yield readFilePromise(file, 'utf8');
-            let version;
+            let version = '';
+            let changed = false;
             switch (fileName) {
                 case 'package.json':
                     core.info('Parsing NodeJS package.json');
@@ -136,12 +327,20 @@ function run() {
             const tags = yield getRepoTags();
             core.info(`Repo has tags: ${tags.join(' ')}`);
             if (tags.indexOf(version) > -1) {
-                core.setFailed(`Tag ${version} already exists in repo`);
+                changed = false;
+                if (failBuild.toLowerCase() === 'false') {
+                    core.warning(`Tag ${version} already exists in repo`);
+                }
+                else {
+                    core.setFailed(`Tag ${version} already exists in repo`);
+                }
             }
             else {
+                changed = true;
                 core.info(`${version} is a new tag, all set to publish new release!`);
-                core.setOutput('releaseVersion', version);
             }
+            core.setOutput('versionChanged', changed.toString());
+            core.setOutput('releaseVersion', version);
         }
         catch (error) {
             core.setFailed(error.message);
@@ -153,11 +352,321 @@ run();
 
 /***/ }),
 
-/***/ 401:
+/***/ 87:
+/***/ (function(module) {
+
+module.exports = require("os");
+
+/***/ }),
+
+/***/ 129:
+/***/ (function(module) {
+
+module.exports = require("child_process");
+
+/***/ }),
+
+/***/ 368:
+/***/ (function(__unusedmodule, exports, __webpack_require__) {
+
+"use strict";
+
+var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+const command_1 = __webpack_require__(451);
+const os = __webpack_require__(87);
+const path = __webpack_require__(622);
+/**
+ * The code to exit an action
+ */
+var ExitCode;
+(function (ExitCode) {
+    /**
+     * A code indicating that the action was successful
+     */
+    ExitCode[ExitCode["Success"] = 0] = "Success";
+    /**
+     * A code indicating that the action was a failure
+     */
+    ExitCode[ExitCode["Failure"] = 1] = "Failure";
+})(ExitCode = exports.ExitCode || (exports.ExitCode = {}));
+//-----------------------------------------------------------------------
+// Variables
+//-----------------------------------------------------------------------
+/**
+ * Sets env variable for this action and future actions in the job
+ * @param name the name of the variable to set
+ * @param val the value of the variable
+ */
+function exportVariable(name, val) {
+    process.env[name] = val;
+    command_1.issueCommand('set-env', { name }, val);
+}
+exports.exportVariable = exportVariable;
+/**
+ * Registers a secret which will get masked from logs
+ * @param secret value of the secret
+ */
+function setSecret(secret) {
+    command_1.issueCommand('add-mask', {}, secret);
+}
+exports.setSecret = setSecret;
+/**
+ * Prepends inputPath to the PATH (for this action and future actions)
+ * @param inputPath
+ */
+function addPath(inputPath) {
+    command_1.issueCommand('add-path', {}, inputPath);
+    process.env['PATH'] = `${inputPath}${path.delimiter}${process.env['PATH']}`;
+}
+exports.addPath = addPath;
+/**
+ * Gets the value of an input.  The value is also trimmed.
+ *
+ * @param     name     name of the input to get
+ * @param     options  optional. See InputOptions.
+ * @returns   string
+ */
+function getInput(name, options) {
+    const val = process.env[`INPUT_${name.replace(/ /g, '_').toUpperCase()}`] || '';
+    if (options && options.required && !val) {
+        throw new Error(`Input required and not supplied: ${name}`);
+    }
+    return val.trim();
+}
+exports.getInput = getInput;
+/**
+ * Sets the value of an output.
+ *
+ * @param     name     name of the output to set
+ * @param     value    value to store
+ */
+function setOutput(name, value) {
+    command_1.issueCommand('set-output', { name }, value);
+}
+exports.setOutput = setOutput;
+//-----------------------------------------------------------------------
+// Results
+//-----------------------------------------------------------------------
+/**
+ * Sets the action status to failed.
+ * When the action exits it will be with an exit code of 1
+ * @param message add error issue message
+ */
+function setFailed(message) {
+    process.exitCode = ExitCode.Failure;
+    error(message);
+}
+exports.setFailed = setFailed;
+//-----------------------------------------------------------------------
+// Logging Commands
+//-----------------------------------------------------------------------
+/**
+ * Writes debug message to user log
+ * @param message debug message
+ */
+function debug(message) {
+    command_1.issueCommand('debug', {}, message);
+}
+exports.debug = debug;
+/**
+ * Adds an error issue
+ * @param message error issue message
+ */
+function error(message) {
+    command_1.issue('error', message);
+}
+exports.error = error;
+/**
+ * Adds an warning issue
+ * @param message warning issue message
+ */
+function warning(message) {
+    command_1.issue('warning', message);
+}
+exports.warning = warning;
+/**
+ * Writes info to log with console.log.
+ * @param message info message
+ */
+function info(message) {
+    process.stdout.write(message + os.EOL);
+}
+exports.info = info;
+/**
+ * Begin an output group.
+ *
+ * Output until the next `groupEnd` will be foldable in this group
+ *
+ * @param name The name of the output group
+ */
+function startGroup(name) {
+    command_1.issue('group', name);
+}
+exports.startGroup = startGroup;
+/**
+ * End an output group.
+ */
+function endGroup() {
+    command_1.issue('endgroup');
+}
+exports.endGroup = endGroup;
+/**
+ * Wrap an asynchronous function call in a group.
+ *
+ * Returns the same type as the function itself.
+ *
+ * @param name The name of the group
+ * @param fn The function to wrap in the group
+ */
+function group(name, fn) {
+    return __awaiter(this, void 0, void 0, function* () {
+        startGroup(name);
+        let result;
+        try {
+            result = yield fn();
+        }
+        finally {
+            endGroup();
+        }
+        return result;
+    });
+}
+exports.group = group;
+//-----------------------------------------------------------------------
+// Wrapper action state
+//-----------------------------------------------------------------------
+/**
+ * Saves state for current action, the state can only be retrieved by this action's post job execution.
+ *
+ * @param     name     name of the state to store
+ * @param     value    value to store
+ */
+function saveState(name, value) {
+    command_1.issueCommand('save-state', { name }, value);
+}
+exports.saveState = saveState;
+/**
+ * Gets the value of an state set by this action's main execution.
+ *
+ * @param     name     name of the state to get
+ * @returns   string
+ */
+function getState(name) {
+    return process.env[`STATE_${name}`] || '';
+}
+exports.getState = getState;
+//# sourceMappingURL=core.js.map
+
+/***/ }),
+
+/***/ 451:
+/***/ (function(__unusedmodule, exports, __webpack_require__) {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", { value: true });
+const os = __webpack_require__(87);
+/**
+ * Commands
+ *
+ * Command Format:
+ *   ##[name key=value;key=value]message
+ *
+ * Examples:
+ *   ##[warning]This is the user warning message
+ *   ##[set-secret name=mypassword]definitelyNotAPassword!
+ */
+function issueCommand(command, properties, message) {
+    const cmd = new Command(command, properties, message);
+    process.stdout.write(cmd.toString() + os.EOL);
+}
+exports.issueCommand = issueCommand;
+function issue(name, message = '') {
+    issueCommand(name, {}, message);
+}
+exports.issue = issue;
+const CMD_STRING = '::';
+class Command {
+    constructor(command, properties, message) {
+        if (!command) {
+            command = 'missing.command';
+        }
+        this.command = command;
+        this.properties = properties;
+        this.message = message;
+    }
+    toString() {
+        let cmdStr = CMD_STRING + this.command;
+        if (this.properties && Object.keys(this.properties).length > 0) {
+            cmdStr += ' ';
+            for (const key in this.properties) {
+                if (this.properties.hasOwnProperty(key)) {
+                    const val = this.properties[key];
+                    if (val) {
+                        // safely append the val - avoid blowing up when attempting to
+                        // call .replace() if message is not a string for some reason
+                        cmdStr += `${key}=${escape(`${val || ''}`)},`;
+                    }
+                }
+            }
+        }
+        cmdStr += CMD_STRING;
+        // safely append the message - avoid blowing up when attempting to
+        // call .replace() if message is not a string for some reason
+        const message = `${this.message || ''}`;
+        cmdStr += escapeData(message);
+        return cmdStr;
+    }
+}
+function escapeData(s) {
+    return s.replace(/\r/g, '%0D').replace(/\n/g, '%0A');
+}
+function escape(s) {
+    return s
+        .replace(/\r/g, '%0D')
+        .replace(/\n/g, '%0A')
+        .replace(/]/g, '%5D')
+        .replace(/;/g, '%3B');
+}
+//# sourceMappingURL=command.js.map
+
+/***/ }),
+
+/***/ 622:
+/***/ (function(module) {
+
+module.exports = require("path");
+
+/***/ }),
+
+/***/ 669:
+/***/ (function(module) {
+
+module.exports = require("util");
+
+/***/ }),
+
+/***/ 747:
+/***/ (function(module) {
+
+module.exports = require("fs");
+
+/***/ }),
+
+/***/ 781:
 /***/ (function(module, __unusedexports, __webpack_require__) {
 
-var parser = __webpack_require__(407);
-var compiler = __webpack_require__(638);
+var parser = __webpack_require__(978);
+var compiler = __webpack_require__(3);
 
 module.exports = {
   parse: function(input) {
@@ -169,7 +678,7 @@ module.exports = {
 
 /***/ }),
 
-/***/ 407:
+/***/ 978:
 /***/ (function(module) {
 
 module.exports = (function() {
@@ -4014,505 +4523,6 @@ module.exports = (function() {
   };
 })();
 
-
-/***/ }),
-
-/***/ 431:
-/***/ (function(__unusedmodule, exports, __webpack_require__) {
-
-"use strict";
-
-Object.defineProperty(exports, "__esModule", { value: true });
-const os = __webpack_require__(87);
-/**
- * Commands
- *
- * Command Format:
- *   ##[name key=value;key=value]message
- *
- * Examples:
- *   ##[warning]This is the user warning message
- *   ##[set-secret name=mypassword]definitelyNotAPassword!
- */
-function issueCommand(command, properties, message) {
-    const cmd = new Command(command, properties, message);
-    process.stdout.write(cmd.toString() + os.EOL);
-}
-exports.issueCommand = issueCommand;
-function issue(name, message = '') {
-    issueCommand(name, {}, message);
-}
-exports.issue = issue;
-const CMD_STRING = '::';
-class Command {
-    constructor(command, properties, message) {
-        if (!command) {
-            command = 'missing.command';
-        }
-        this.command = command;
-        this.properties = properties;
-        this.message = message;
-    }
-    toString() {
-        let cmdStr = CMD_STRING + this.command;
-        if (this.properties && Object.keys(this.properties).length > 0) {
-            cmdStr += ' ';
-            for (const key in this.properties) {
-                if (this.properties.hasOwnProperty(key)) {
-                    const val = this.properties[key];
-                    if (val) {
-                        // safely append the val - avoid blowing up when attempting to
-                        // call .replace() if message is not a string for some reason
-                        cmdStr += `${key}=${escape(`${val || ''}`)},`;
-                    }
-                }
-            }
-        }
-        cmdStr += CMD_STRING;
-        // safely append the message - avoid blowing up when attempting to
-        // call .replace() if message is not a string for some reason
-        const message = `${this.message || ''}`;
-        cmdStr += escapeData(message);
-        return cmdStr;
-    }
-}
-function escapeData(s) {
-    return s.replace(/\r/g, '%0D').replace(/\n/g, '%0A');
-}
-function escape(s) {
-    return s
-        .replace(/\r/g, '%0D')
-        .replace(/\n/g, '%0A')
-        .replace(/]/g, '%5D')
-        .replace(/;/g, '%3B');
-}
-//# sourceMappingURL=command.js.map
-
-/***/ }),
-
-/***/ 470:
-/***/ (function(__unusedmodule, exports, __webpack_require__) {
-
-"use strict";
-
-var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
-    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-const command_1 = __webpack_require__(431);
-const os = __webpack_require__(87);
-const path = __webpack_require__(622);
-/**
- * The code to exit an action
- */
-var ExitCode;
-(function (ExitCode) {
-    /**
-     * A code indicating that the action was successful
-     */
-    ExitCode[ExitCode["Success"] = 0] = "Success";
-    /**
-     * A code indicating that the action was a failure
-     */
-    ExitCode[ExitCode["Failure"] = 1] = "Failure";
-})(ExitCode = exports.ExitCode || (exports.ExitCode = {}));
-//-----------------------------------------------------------------------
-// Variables
-//-----------------------------------------------------------------------
-/**
- * Sets env variable for this action and future actions in the job
- * @param name the name of the variable to set
- * @param val the value of the variable
- */
-function exportVariable(name, val) {
-    process.env[name] = val;
-    command_1.issueCommand('set-env', { name }, val);
-}
-exports.exportVariable = exportVariable;
-/**
- * Registers a secret which will get masked from logs
- * @param secret value of the secret
- */
-function setSecret(secret) {
-    command_1.issueCommand('add-mask', {}, secret);
-}
-exports.setSecret = setSecret;
-/**
- * Prepends inputPath to the PATH (for this action and future actions)
- * @param inputPath
- */
-function addPath(inputPath) {
-    command_1.issueCommand('add-path', {}, inputPath);
-    process.env['PATH'] = `${inputPath}${path.delimiter}${process.env['PATH']}`;
-}
-exports.addPath = addPath;
-/**
- * Gets the value of an input.  The value is also trimmed.
- *
- * @param     name     name of the input to get
- * @param     options  optional. See InputOptions.
- * @returns   string
- */
-function getInput(name, options) {
-    const val = process.env[`INPUT_${name.replace(/ /g, '_').toUpperCase()}`] || '';
-    if (options && options.required && !val) {
-        throw new Error(`Input required and not supplied: ${name}`);
-    }
-    return val.trim();
-}
-exports.getInput = getInput;
-/**
- * Sets the value of an output.
- *
- * @param     name     name of the output to set
- * @param     value    value to store
- */
-function setOutput(name, value) {
-    command_1.issueCommand('set-output', { name }, value);
-}
-exports.setOutput = setOutput;
-//-----------------------------------------------------------------------
-// Results
-//-----------------------------------------------------------------------
-/**
- * Sets the action status to failed.
- * When the action exits it will be with an exit code of 1
- * @param message add error issue message
- */
-function setFailed(message) {
-    process.exitCode = ExitCode.Failure;
-    error(message);
-}
-exports.setFailed = setFailed;
-//-----------------------------------------------------------------------
-// Logging Commands
-//-----------------------------------------------------------------------
-/**
- * Writes debug message to user log
- * @param message debug message
- */
-function debug(message) {
-    command_1.issueCommand('debug', {}, message);
-}
-exports.debug = debug;
-/**
- * Adds an error issue
- * @param message error issue message
- */
-function error(message) {
-    command_1.issue('error', message);
-}
-exports.error = error;
-/**
- * Adds an warning issue
- * @param message warning issue message
- */
-function warning(message) {
-    command_1.issue('warning', message);
-}
-exports.warning = warning;
-/**
- * Writes info to log with console.log.
- * @param message info message
- */
-function info(message) {
-    process.stdout.write(message + os.EOL);
-}
-exports.info = info;
-/**
- * Begin an output group.
- *
- * Output until the next `groupEnd` will be foldable in this group
- *
- * @param name The name of the output group
- */
-function startGroup(name) {
-    command_1.issue('group', name);
-}
-exports.startGroup = startGroup;
-/**
- * End an output group.
- */
-function endGroup() {
-    command_1.issue('endgroup');
-}
-exports.endGroup = endGroup;
-/**
- * Wrap an asynchronous function call in a group.
- *
- * Returns the same type as the function itself.
- *
- * @param name The name of the group
- * @param fn The function to wrap in the group
- */
-function group(name, fn) {
-    return __awaiter(this, void 0, void 0, function* () {
-        startGroup(name);
-        let result;
-        try {
-            result = yield fn();
-        }
-        finally {
-            endGroup();
-        }
-        return result;
-    });
-}
-exports.group = group;
-//-----------------------------------------------------------------------
-// Wrapper action state
-//-----------------------------------------------------------------------
-/**
- * Saves state for current action, the state can only be retrieved by this action's post job execution.
- *
- * @param     name     name of the state to store
- * @param     value    value to store
- */
-function saveState(name, value) {
-    command_1.issueCommand('save-state', { name }, value);
-}
-exports.saveState = saveState;
-/**
- * Gets the value of an state set by this action's main execution.
- *
- * @param     name     name of the state to get
- * @returns   string
- */
-function getState(name) {
-    return process.env[`STATE_${name}`] || '';
-}
-exports.getState = getState;
-//# sourceMappingURL=core.js.map
-
-/***/ }),
-
-/***/ 622:
-/***/ (function(module) {
-
-module.exports = require("path");
-
-/***/ }),
-
-/***/ 638:
-/***/ (function(module) {
-
-"use strict";
-
-function compile(nodes) {
-  var assignedPaths = [];
-  var valueAssignments = [];
-  var currentPath = "";
-  var data = Object.create(null);
-  var context = data;
-  var arrayMode = false;
-
-  return reduce(nodes);
-
-  function reduce(nodes) {
-    var node;
-    for (var i = 0; i < nodes.length; i++) {
-      node = nodes[i];
-      switch (node.type) {
-      case "Assign":
-        assign(node);
-        break;
-      case "ObjectPath":
-        setPath(node);
-        break;
-      case "ArrayPath":
-        addTableArray(node);
-        break;
-      }
-    }
-
-    return data;
-  }
-
-  function genError(err, line, col) {
-    var ex = new Error(err);
-    ex.line = line;
-    ex.column = col;
-    throw ex;
-  }
-
-  function assign(node) {
-    var key = node.key;
-    var value = node.value;
-    var line = node.line;
-    var column = node.column;
-
-    var fullPath;
-    if (currentPath) {
-      fullPath = currentPath + "." + key;
-    } else {
-      fullPath = key;
-    }
-    if (typeof context[key] !== "undefined") {
-      genError("Cannot redefine existing key '" + fullPath + "'.", line, column);
-    }
-
-    context[key] = reduceValueNode(value);
-
-    if (!pathAssigned(fullPath)) {
-      assignedPaths.push(fullPath);
-      valueAssignments.push(fullPath);
-    }
-  }
-
-
-  function pathAssigned(path) {
-    return assignedPaths.indexOf(path) !== -1;
-  }
-
-  function reduceValueNode(node) {
-    if (node.type === "Array") {
-      return reduceArrayWithTypeChecking(node.value);
-    } else if (node.type === "InlineTable") {
-      return reduceInlineTableNode(node.value);
-    } else {
-      return node.value;
-    }
-  }
-
-  function reduceInlineTableNode(values) {
-    var obj = Object.create(null);
-    for (var i = 0; i < values.length; i++) {
-      var val = values[i];
-      if (val.value.type === "InlineTable") {
-        obj[val.key] = reduceInlineTableNode(val.value.value);
-      } else if (val.type === "InlineTableValue") {
-        obj[val.key] = reduceValueNode(val.value);
-      }
-    }
-
-    return obj;
-  }
-
-  function setPath(node) {
-    var path = node.value;
-    var quotedPath = path.map(quoteDottedString).join(".");
-    var line = node.line;
-    var column = node.column;
-
-    if (pathAssigned(quotedPath)) {
-      genError("Cannot redefine existing key '" + path + "'.", line, column);
-    }
-    assignedPaths.push(quotedPath);
-    context = deepRef(data, path, Object.create(null), line, column);
-    currentPath = path;
-  }
-
-  function addTableArray(node) {
-    var path = node.value;
-    var quotedPath = path.map(quoteDottedString).join(".");
-    var line = node.line;
-    var column = node.column;
-
-    if (!pathAssigned(quotedPath)) {
-      assignedPaths.push(quotedPath);
-    }
-    assignedPaths = assignedPaths.filter(function(p) {
-      return p.indexOf(quotedPath) !== 0;
-    });
-    assignedPaths.push(quotedPath);
-    context = deepRef(data, path, [], line, column);
-    currentPath = quotedPath;
-
-    if (context instanceof Array) {
-      var newObj = Object.create(null);
-      context.push(newObj);
-      context = newObj;
-    } else {
-      genError("Cannot redefine existing key '" + path + "'.", line, column);
-    }
-  }
-
-  // Given a path 'a.b.c', create (as necessary) `start.a`,
-  // `start.a.b`, and `start.a.b.c`, assigning `value` to `start.a.b.c`.
-  // If `a` or `b` are arrays and have items in them, the last item in the
-  // array is used as the context for the next sub-path.
-  function deepRef(start, keys, value, line, column) {
-    var traversed = [];
-    var traversedPath = "";
-    var path = keys.join(".");
-    var ctx = start;
-
-    for (var i = 0; i < keys.length; i++) {
-      var key = keys[i];
-      traversed.push(key);
-      traversedPath = traversed.join(".");
-      if (typeof ctx[key] === "undefined") {
-        if (i === keys.length - 1) {
-          ctx[key] = value;
-        } else {
-          ctx[key] = Object.create(null);
-        }
-      } else if (i !== keys.length - 1 && valueAssignments.indexOf(traversedPath) > -1) {
-        // already a non-object value at key, can't be used as part of a new path
-        genError("Cannot redefine existing key '" + traversedPath + "'.", line, column);
-      }
-
-      ctx = ctx[key];
-      if (ctx instanceof Array && ctx.length && i < keys.length - 1) {
-        ctx = ctx[ctx.length - 1];
-      }
-    }
-
-    return ctx;
-  }
-
-  function reduceArrayWithTypeChecking(array) {
-    // Ensure that all items in the array are of the same type
-    var firstType = null;
-    for (var i = 0; i < array.length; i++) {
-      var node = array[i];
-      if (firstType === null) {
-        firstType = node.type;
-      } else {
-        if (node.type !== firstType) {
-          genError("Cannot add value of type " + node.type + " to array of type " +
-            firstType + ".", node.line, node.column);
-        }
-      }
-    }
-
-    // Recursively reduce array of nodes into array of the nodes' values
-    return array.map(reduceValueNode);
-  }
-
-  function quoteDottedString(str) {
-    if (str.indexOf(".") > -1) {
-      return "\"" + str + "\"";
-    } else {
-      return str;
-    }
-  }
-}
-
-module.exports = {
-  compile: compile
-};
-
-
-/***/ }),
-
-/***/ 669:
-/***/ (function(module) {
-
-module.exports = require("util");
-
-/***/ }),
-
-/***/ 747:
-/***/ (function(module) {
-
-module.exports = require("fs");
 
 /***/ })
 
