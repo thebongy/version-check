@@ -17,7 +17,7 @@ can be used in a later step to publish a release.
 
 ## Usage
 ### Pre-requisites
-Create a workflow `.yml` file in your `.github/workflows` directory. An [example workflow](#example-workflow---create-a-release) is available below. For more information, reference the GitHub Help Documentation for [Creating a workflow file](https://help.github.com/en/articles/configuring-a-workflow#creating-a-workflow-file).
+Create a workflow `.yml` file in your `.github/workflows` directory. An [example workflow](#example-workflow) is available below. For more information, reference the GitHub Help Documentation for [Creating a workflow file](https://help.github.com/en/articles/configuring-a-workflow#creating-a-workflow-file).
 
 **Note 1**: The current version requires you to fetch all tags on the repo when you checkout your repo. (This will be done automatically in a later update)
 **Note 2**: The build will fail if the tag is found to already exist on the repo. This behaviour will be configurable in a later update
@@ -32,7 +32,7 @@ Create a workflow `.yml` file in your `.github/workflows` directory. An [example
 - `releaseVersion`: The version read from the project, in the format as given in the `tagFormat` input.
 
 ### Example workflow - 
-Read a version from your package.json, and check if a tag of the format `${version}-beta` already exists on the repo on PRs to the `staging` branch.
+Read a version from your package.json, and check if a tag of the format `v${version}-beta` already exists on the repo on PRs to the `staging` branch.
 If the version exists, the build fails, otherwise, the version number is exported to the `releaseVersion` variable
 
 
@@ -53,7 +53,7 @@ jobs:
       - name: Check Release Version
         uses: thebongy/version-check@v1
         with:
-          file: Cargo.toml
+          file: package.json
           tagFormat: v${version}-beta
         id: version_check_staging
       - name:
