@@ -1,17 +1,17 @@
-name: 'version-check'
-description: 'Provide a description here'
-author: 'thebongy'
+name: thebongy/version-check
+description: Extracts your project version and checks if a tag with the same version doesn't exist
+author: thebongy
 inputs:
   file:
     required: true
-    description: Path to json file with version property on root
+    description: Path to project configuration file (package.json for Nodejs, Cargo.yml for rust supported currently)
   tagFormat:
     required: false
     description: Format string for tag, use ${version} to substitute version
     default: ${version}
 outputs:
   releaseVersion:
-    description: 'If version is unique, the version from the jsonFile.'
+    description: 'The (formatted) version read from the project'
 runs:
   using: 'node12'
   main: 'dist/index.js'

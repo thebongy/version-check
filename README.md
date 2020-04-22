@@ -1,101 +1,68 @@
-<p align="center">
-  <a href="https://github.com/actions/typescript-action/actions"><img alt="typescript-action status" src="https://github.com/actions/typescript-action/workflows/build-test/badge.svg"></a>
-</p>
+# version-check
 
-# Create a JavaScript Action using TypeScript
+This github action extracts your project from a configuration file (like package.json), and checks if a tag with the same version
+doesn't already exist on the repo. If the version is unique, it exports the version number as an output variable from the action, that
+can be used in a later step to publish a release.
 
-Use this template to bootstrap the creation of a JavaScript action.:rocket:
+## Supported Project Configurations:
+- NodeJS (package.json) (Reads from the version key on the root of the json)
+- Rust (Cargo.toml) (Reads from the `version` property in the `[package]` section)
 
-This template includes compilication support, tests, a validation workflow, publishing, and versioning guidance.  
+## Use cases:
+1. You want to extract your version number from a file, and construct a different tag for it based on the string. Can be used to
+   for example, to publish (1.0.0-beta) for pushes on a beta branch, and (1.0.0) on a stable branch
+2. You want to perform checks on PRs/pushes to verify if the version number on your project was updated, and doesn't already exist on the repo as a tag.
+   This is useful as it prevents you from overwriting the same version number, which can get messy to revert
 
-If you are new, there's also a simpler introduction.  See the [Hello World JavaScript Action](https://github.com/actions/hello-world-javascript-action)
 
-## Create an action from this template
+## Usage
+### Pre-requisites
+Create a workflow `.yml` file in your `.github/workflows` directory. An [example workflow](#example-workflow---create-a-release) is available below. For more information, reference the GitHub Help Documentation for [Creating a workflow file](https://help.github.com/en/articles/configuring-a-workflow#creating-a-workflow-file).
 
-Click the `Use this Template` and provide the new repo details for your action
+**Note 1**: The current version requires you to fetch all tags on the repo when you checkout your repo. (This will be done automatically in a later update)
+**Note 2**: The build will fail if the tag is found to already exist on the repo. This behaviour will be configurable in a later update
 
-## Code in Master
+### Inputs
 
-Install the dependencies  
-```bash
-$ npm install
-```
+- `file`: The path to the configuration file of the project (See [Supported Project Configurations](#supported-project-configurations))
+- `tagFormat`: By default just ${version}, but can be modified to transform the version to another format, for eg (${version}-beta)
 
-Build the typescript and package it for distribution
-```bash
-$ npm run build && npm run pack
-```
+### Outputs
 
-Run the tests :heavy_check_mark:  
-```bash
-$ npm test
+- `releaseVersion`: The version read from the project, in the format as given in the `tagFormat` input.
 
- PASS  ./index.test.js
-  ✓ throws invalid number (3ms)
-  ✓ wait 500 ms (504ms)
-  ✓ test runs (95ms)
+### Example workflow - 
+Read a version from your package.json, and check if a tag of the format `${version}-beta` already exists on the repo on PRs to the `staging` branch.
+If the version exists, the build fails, otherwise, the version number is exported to the `releaseVersion` variable
 
-...
-```
-
-## Change action.yml
-
-The action.yml contains defines the inputs and output for your action.
-
-Update the action.yml with your name, description, inputs and outputs for your action.
-
-See the [documentation](https://help.github.com/en/articles/metadata-syntax-for-github-actions)
-
-## Change the Code
-
-Most toolkit and CI/CD operations involve async operations so the action is run in an async function.
-
-```javascript
-import * as core from '@actions/core';
-...
-
-async function run() {
-  try { 
-      ...
-  } 
-  catch (error) {
-    core.setFailed(error.message);
-  }
-}
-
-run()
-```
-
-See the [toolkit documentation](https://github.com/actions/toolkit/blob/master/README.md#packages) for the various packages.
-
-## Publish to a distribution branch
-
-Actions are run from GitHub repos so we will checkin the packed dist folder. 
-
-Then run [ncc](https://github.com/zeit/ncc) and push the results:
-```bash
-$ npm run pack
-$ git add dist
-$ git commit -a -m "prod dependencies"
-$ git push origin releases/v1
-```
-
-Your action is now published! :rocket: 
-
-See the [versioning documentation](https://github.com/actions/toolkit/blob/master/docs/action-versioning.md)
-
-## Validate
-
-You can now validate the action by referencing `./` in a workflow in your repo (see [test.yml](.github/workflows/test.yml)])
 
 ```yaml
-uses: ./
-with:
-  milliseconds: 1000
+on:
+  pull_request:
+    branches:
+      - staging
+name: Continuous integration
+jobs:
+  version-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+
+      - run: git fetch --all --tags
+
+      - name: Check Release Version
+        uses: thebongy/version-check@v1
+        with:
+          file: Cargo.toml
+          tagFormat: v${version}-beta
+        id: version_check_staging
+      - name:
+        run: |
+        echo "Version ${{steps.version_check.outputs.releaseVersion}}"
 ```
 
-See the [actions tab](https://github.com/actions/javascript-action/actions) for runs of this action! :rocket:
+## Contributing
+We would love you to contribute pull requests are welcome!
 
-## Usage:
-
-After testing you can [create a v1 tag](https://github.com/actions/toolkit/blob/master/docs/action-versioning.md) to reference the stable and latest V1 action
+## License
+The scripts and documentation in this project are released under the [MIT License](LICENSE)
