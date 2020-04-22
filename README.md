@@ -20,17 +20,17 @@ can be used in a later step to publish a release.
 Create a workflow `.yml` file in your `.github/workflows` directory. An [example workflow](#example-workflow) is available below. For more information, reference the GitHub Help Documentation for [Creating a workflow file](https://help.github.com/en/articles/configuring-a-workflow#creating-a-workflow-file).
 
 **Note 1**: The current version requires you to fetch all tags on the repo when you checkout your repo. (This will be done automatically in a later update)
-**Note 2**: The build will fail if the tag is found to already exist on the repo. This behaviour will be configurable in a later update
 
 ### Inputs
 
 - `file`: The path to the configuration file of the project (See [Supported Project Configurations](#supported-project-configurations))
 - `tagFormat`: By default just ${version}, but can be modified to transform the version to another format, for eg (${version}-beta)
+- `failBuild`: If `true` the build will be failed if the version already exists in the repo. (By default this value is `true`, set to `false` if you don't want the build to fail)
 
 ### Outputs
 
 - `releaseVersion`: The version read from the project, in the format as given in the `tagFormat` input.
-
+- `versionChanged`: `true` if the version changed, `false` otherwise
 ### Example workflow - 
 Read a version from your package.json, and check if a tag of the format `v${version}-beta` already exists on the repo on PRs to the `staging` branch.
 If the version exists, the build fails, otherwise, the version number is exported to the `releaseVersion` variable

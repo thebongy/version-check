@@ -30,12 +30,13 @@ async function run(): Promise<void> {
     try {
         const file: string = core.getInput('file');
         const tagFormat: string = core.getInput('tagFormat');
+        const failBuild: string = core.getInput('failBuild');
 
         const fileName = path.basename(file).toLowerCase();
         core.info(`Reading ${file}`);
         const fileData = await readFilePromise(file, 'utf8');
-        let version;
-
+        let version = '';
+        let changed = false;
         switch (fileName) {
             case 'package.json':
                 core.info('Parsing NodeJS package.json');
@@ -62,11 +63,18 @@ async function run(): Promise<void> {
         core.info(`Repo has tags: ${tags.join(' ')}`);
 
         if (tags.indexOf(version) > -1) {
-            core.setFailed(`Tag ${version} already exists in repo`);
+            changed = false;
+            if (failBuild.toLowerCase() === 'false') {
+                core.warning(`Tag ${version} already exists in repo`);
+            } else {
+                core.setFailed(`Tag ${version} already exists in repo`);
+            }
         } else {
+            changed = true;
             core.info(`${version} is a new tag, all set to publish new release!`);
-            core.setOutput('releaseVersion', version);
         }
+        core.setOutput('versionChanged', changed.toString());
+        core.setOutput('releaseVersion', version);
     } catch (error) {
         core.setFailed(error.message);
     }

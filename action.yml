@@ -9,9 +9,15 @@ inputs:
     required: false
     description: Format string for tag, use ${version} to substitute version
     default: ${version}
+  failBuild:
+    required: false
+    default: 'true'
+    description: Whether the build should fail if the version didn't change
 outputs:
   releaseVersion:
     description: 'The (formatted) version read from the project'
+  versionChanged:
+    description: true if the version changed, false otherwise
 runs:
   using: 'node12'
   main: 'dist/index.js'
