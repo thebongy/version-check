@@ -64,7 +64,6 @@ async function run(): Promise<void> {
 
         if (tags.indexOf(version) > -1) {
             changed = false;
-            core.info(failBuild.toLowerCase());
             if (failBuild.toLowerCase() === 'false') {
                 core.warning(`Tag ${version} already exists in repo`);
             } else {
