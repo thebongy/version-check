@@ -16,6 +16,8 @@ inputs:
 outputs:
   releaseVersion:
     description: 'The (formatted) version read from the project'
+  rawVersion:
+    description: 'The raw version read from the project configuration file'
   versionChanged:
     description: true if the version changed, false otherwise
 runs:
