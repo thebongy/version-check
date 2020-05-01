@@ -35,26 +35,26 @@ async function run(): Promise<void> {
         const fileName = path.basename(file).toLowerCase();
         core.info(`Reading ${file}`);
         const fileData = await readFilePromise(file, 'utf8');
-        let version = '';
+        let rawVersion = '';
         let changed = false;
         switch (fileName) {
             case 'package.json':
                 core.info('Parsing NodeJS package.json');
-                version = JSON.parse(fileData).version;
+                rawVersion = JSON.parse(fileData).version;
                 break;
             case 'cargo.toml':
                 core.info('Parsing Rust Cargo.toml file');
-                version = toml.parse(fileData).package.version;
+                rawVersion = toml.parse(fileData).package.version;
                 break;
             default:
                 core.setFailed(`Unsupported file type ${file}`);
                 break;
         }
 
-        core.info(`Version in file: ${version}`);
+        core.info(`Version in file: ${rawVersion}`);
 
         // eslint-disable-next-line no-template-curly-in-string
-        version = tagFormat.replace('${version}', version);
+        const version = tagFormat.replace('${version}', rawVersion);
 
         core.info(`Current Tag: ${version}`);
 
@@ -72,7 +72,8 @@ async function run(): Promise<void> {
         } else {
             changed = true;
             core.info(`${version} is a new tag, all set to publish new release!`);
-        }
+		}
+		core.setOutput('rawVersion', rawVersion);
         core.setOutput('versionChanged', changed.toString());
         core.setOutput('releaseVersion', version);
     } catch (error) {

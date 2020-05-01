@@ -30,6 +30,7 @@ Create a workflow `.yml` file in your `.github/workflows` directory. An [example
 ### Outputs
 
 - `releaseVersion`: The version read from the project, in the format as given in the `tagFormat` input.
+- `rawVersion`: The raw version number read from the project configuration file
 - `versionChanged`: `true` if the version changed, `false` otherwise
 ### Example workflow - 
 Read a version from your package.json, and check if a tag of the format `v${version}-beta` already exists on the repo on PRs to the `staging` branch.
