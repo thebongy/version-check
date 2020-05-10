@@ -76,7 +76,6 @@ async function run(): Promise<void> {
 		core.setOutput('rawVersion', rawVersion);
 		core.setOutput('versionChanged', changed.toString());
 		core.setOutput('releaseVersion', version);
-		core.setOutput('versionParts', rawVersion.split('.'));
 		core.setOutput(
 			'releaseTags',
 			rawVersion
