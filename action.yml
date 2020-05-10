@@ -20,8 +20,6 @@ outputs:
     description: 'The raw version read from the project configuration file'
   versionChanged:
     description: 'true if the version changed, false otherwise'
-  versionParts:
-    description: 'The list of parts of the version'
   releaseTags:
     description: 'The list of tags of the version, for use with docker'
 runs:
