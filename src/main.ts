@@ -79,11 +79,11 @@ async function run(): Promise<void> {
         core.setOutput(
             'releaseTags',
             rawVersion
-                .split(".")
+                .split('.')
                 .map((_, i, versions) => {
-                    return versions.slice(0, i).join(".");
+                    return versions.slice(0, i).join('.');
                 })
-                .join(",")
+                .join(',')
         );
     } catch (error) {
         core.setFailed(error.message);
