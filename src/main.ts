@@ -83,7 +83,7 @@ async function run(): Promise<void> {
 				.map((_, i, versions) => {
 					return versions.slice(0, i).join(".");
 				})
-				.join(", ")
+				.join(",")
 		);
     } catch (error) {
         core.setFailed(error.message);
