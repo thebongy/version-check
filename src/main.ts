@@ -72,19 +72,19 @@ async function run(): Promise<void> {
         } else {
             changed = true;
             core.info(`${version} is a new tag, all set to publish new release!`);
-		}
-		core.setOutput('rawVersion', rawVersion);
-		core.setOutput('versionChanged', changed.toString());
-		core.setOutput('releaseVersion', version);
-		core.setOutput(
-			'releaseTags',
-			rawVersion
-				.split(".")
-				.map((_, i, versions) => {
-					return versions.slice(0, i).join(".");
-				})
-				.join(",")
-		);
+        }
+        core.setOutput('rawVersion', rawVersion);
+        core.setOutput('versionChanged', changed.toString());
+        core.setOutput('releaseVersion', version);
+        core.setOutput(
+            'releaseTags',
+            rawVersion
+                .split(".")
+                .map((_, i, versions) => {
+                    return versions.slice(0, i).join(".");
+                })
+                .join(",")
+        );
     } catch (error) {
         core.setFailed(error.message);
     }
