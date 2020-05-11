@@ -19,7 +19,9 @@ outputs:
   rawVersion:
     description: 'The raw version read from the project configuration file'
   versionChanged:
-    description: true if the version changed, false otherwise
+    description: 'true if the version changed, false otherwise'
+  releaseTags:
+    description: 'The list of tags of the version, for use with docker'
 runs:
   using: 'node12'
   main: 'dist/index.js'
