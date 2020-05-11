@@ -80,7 +80,7 @@ async function run(): Promise<void> {
             'releaseTags',
             rawVersion
                 .split('.')
-                .map((_, i, versions) => versions.slice(0, i).join('.'))
+                .map((_, i, versions) => versions.slice(0, i+1).join('.'))
                 .join(','),
         );
     } catch (error) {
