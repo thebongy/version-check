@@ -32,7 +32,7 @@ Create a workflow `.yml` file in your `.github/workflows` directory. An [example
 - `releaseVersion`: The version read from the project, in the format as given in the `tagFormat` input.
 - `rawVersion`: The raw version number read from the project configuration file
 - `versionChanged`: `true` if the version changed, `false` otherwise
-- `releaseTags`: Assumed that `rawVersion` follows semantic versioning, and outputs a string of comma seperated tags, to use for docker image versioning. (For example, the rawVersion `1.0.2` would lead to releaseTags becoming `1,1.0,1.0.2`.
+- `releaseTags`: Assumed that `rawVersion` follows semantic versioning, and outputs a string of comma seperated tags, to use for docker image versioning. (For example, the rawVersion `1.0.2` would lead to releaseTags becoming `1,1.0,1.0.2`. Note that each of the tags also folloe the tagFormat specified
   
 ### Example workflow - 
 Read a version from your package.json, and check if a tag of the format `v${version}-beta` already exists on the repo on PRs to the `staging` branch.

@@ -153,6 +153,11 @@ function run() {
             core.setOutput('rawVersion', rawVersion);
             core.setOutput('versionChanged', changed.toString());
             core.setOutput('releaseVersion', version);
+            core.setOutput('releaseTags', rawVersion
+                .split('.')
+                // eslint-disable-next-line no-template-curly-in-string
+                .map((_, i, versions) => tagFormat.replace('${version}', versions.slice(0, i + 1).join('.')))
+                .join(','));
         }
         catch (error) {
             core.setFailed(error.message);
