@@ -61,7 +61,7 @@ jobs:
         id: version_check_staging
       - name:
         run: |
-        echo "Version ${{steps.version_check.outputs.releaseVersion}}"
+        echo "Version ${{steps.version_check_staging.outputs.releaseVersion}}"
 ```
 
 ## Contributing
