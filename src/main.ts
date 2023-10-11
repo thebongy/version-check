@@ -1,5 +1,5 @@
 import * as core from '@actions/core';
-import * as toml from 'toml';
+import * as toml from 'smol-toml';
 import * as path from 'path';
 
 import { exec } from 'child_process';
