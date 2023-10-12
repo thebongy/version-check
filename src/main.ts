@@ -44,12 +44,14 @@ async function run(): Promise<void> {
                 break;
             case 'cargo.toml':
                 core.info('Parsing Rust Cargo.toml file');
+                // eslint-disable-next-line no-case-declarations
                 const parsedPackage: Object = toml.parse(fileData).package;
                 if ('version' in parsedPackage) {
                     rawVersion = parsedPackage.version as string;
                     break;
                 }
                 core.setFailed('Cargo.toml did not contain package.version');
+                break;
             default:
                 core.setFailed(`Unsupported file type ${file}`);
                 break;
@@ -89,7 +91,7 @@ async function run(): Promise<void> {
                 .join(','),
         );
     } catch (error) {
-        if (error instanceof Error ) {
+        if (error instanceof Error) {
             core.setFailed(error.message);
         }
     }

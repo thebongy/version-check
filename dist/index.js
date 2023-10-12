@@ -26738,12 +26738,14 @@ function run() {
                     break;
                 case 'cargo.toml':
                     core.info('Parsing Rust Cargo.toml file');
+                    // eslint-disable-next-line no-case-declarations
                     const parsedPackage = parse(fileData).package;
                     if ('version' in parsedPackage) {
                         rawVersion = parsedPackage.version;
                         break;
                     }
                     core.setFailed('Cargo.toml did not contain package.version');
+                    break;
                 default:
                     core.setFailed(`Unsupported file type ${file}`);
                     break;
