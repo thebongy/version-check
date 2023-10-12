@@ -23,7 +23,7 @@ outputs:
   releaseTags:
     description: 'The list of tags of the version, for use with docker'
 runs:
-  using: 'node12'
+  using: 'node20'
   main: 'dist/index.js'
 branding:
   icon: 'check'
