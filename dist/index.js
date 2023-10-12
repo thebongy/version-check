@@ -26683,7 +26683,7 @@ const external_child_process_namespaceObject = __WEBPACK_EXTERNAL_createRequire(
 var external_fs_ = __nccwpck_require__(7147);
 // EXTERNAL MODULE: external "util"
 var external_util_ = __nccwpck_require__(3837);
-;// CONCATENATED MODULE: ./src/main.ts
+;// CONCATENATED MODULE: ./lib/main.js
 var __awaiter = (undefined && undefined.__awaiter) || function (thisArg, _arguments, P, generator) {
     function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
     return new (P || (P = Promise))(function (resolve, reject) {
