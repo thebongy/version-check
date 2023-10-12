@@ -44,8 +44,12 @@ async function run(): Promise<void> {
                 break;
             case 'cargo.toml':
                 core.info('Parsing Rust Cargo.toml file');
-                rawVersion = toml.parse(fileData).package.version;
-                break;
+                const parsedPackage: Object = toml.parse(fileData).package;
+                if ('version' in parsedPackage) {
+                    rawVersion = parsedPackage.version as string;
+                    break;
+                }
+                core.setFailed('Cargo.toml did not contain package.version');
             default:
                 core.setFailed(`Unsupported file type ${file}`);
                 break;
@@ -85,7 +89,9 @@ async function run(): Promise<void> {
                 .join(','),
         );
     } catch (error) {
-        core.setFailed(error.message);
+        if (error instanceof Error ) {
+            core.setFailed(error.message);
+        }
     }
 }
 
