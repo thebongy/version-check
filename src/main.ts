@@ -1,5 +1,5 @@
 import * as core from '@actions/core';
-import * as toml from 'toml';
+import * as toml from 'smol-toml';
 import * as path from 'path';
 
 import { exec } from 'child_process';
@@ -44,7 +44,13 @@ async function run(): Promise<void> {
                 break;
             case 'cargo.toml':
                 core.info('Parsing Rust Cargo.toml file');
-                rawVersion = toml.parse(fileData).package.version;
+                // eslint-disable-next-line no-case-declarations
+                const parsedPackage: Object = toml.parse(fileData).package;
+                if ('version' in parsedPackage) {
+                    rawVersion = parsedPackage.version as string;
+                    break;
+                }
+                core.setFailed('Cargo.toml did not contain package.version');
                 break;
             default:
                 core.setFailed(`Unsupported file type ${file}`);
@@ -85,7 +91,9 @@ async function run(): Promise<void> {
                 .join(','),
         );
     } catch (error) {
-        core.setFailed(error.message);
+        if (error instanceof Error) {
+            core.setFailed(error.message);
+        }
     }
 }
 
