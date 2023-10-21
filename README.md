@@ -54,7 +54,7 @@ jobs:
       - run: git fetch --all --tags
 
       - name: Check Release Version
-        uses: thebongy/version-check@v1
+        uses: thebongy/version-check@v2
         with:
           file: package.json
           tagFormat: v${version}-beta
